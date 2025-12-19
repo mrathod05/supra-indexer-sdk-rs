@@ -1134,6 +1134,8 @@ checksum = "7da8b5736845d9f2fcb837ea5d9e2628564b3b043a70948a3f0b778838c5fb4f"
 [[package]]
 name = "supra_indexer_sdk"
 version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "edebc1f2e59a841aade12a71a5b36f096e570f7fa6c8a26aef01591d4f088043"
 dependencies = [
  "anyhow",
  "async-trait",
