@@ -1,0 +1,4 @@
+.idea
+**/target/**
+/supra-indexer-rs/target/
+/sdk-example/target/
