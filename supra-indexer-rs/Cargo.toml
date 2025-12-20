@@ -1,0 +1,46 @@
+[package]
+name = "supra_indexer_sdk"
+version = "0.1.1"
+edition = "2024"
+rust-version = "1.85.0"
+description = "A Rust SDK for interacting with the Supra blockchain indexer."
+license = "MIT OR Apache-2.0"
+readme = "README.md"
+authors = ["Meet Rathod <mrathod05@github>"]
+repository = "https://github.com/mrathod05/supra-indexer-sdk-rs"
+homepage = "https://meetrathoddeveloper.netlify.app/"
+documentation = "https://docs.rs/supra_indexer_sdk"
+keywords = ["supra", "blockchain", "indexer", "sdk", "web3"] # Max 5
+categories = ["cryptography::cryptocurrencies", "database", "web-programming"]
+exclude = [".github/", "tests/"] # Good practice to keep crate size small
+
+[profile.dev]
+opt-level = 0
+debug = true
+debug-assertions = true
+overflow-checks = true
+lto = false
+panic = 'unwind'
+incremental = true
+codegen-units = 256
+rpath = false
+
+[profile.release]
+opt-level = 3
+debug = 2
+debug-assertions = false
+overflow-checks = false
+lto = "thin"
+panic = 'abort'
+codegen-units = 16
+incremental = true
+rpath = false
+
+[dependencies]
+tokio = { version = "1.0", features = ["full"] }
+diesel = { version = "2.0", features = ["postgres", "r2d2", "chrono", "serde_json"] }
+serde = { version = "1.0", features = ["derive"] }
+reqwest = { version = "0.11", features = ["json"] }
+async-trait = "0.1"
+anyhow = "1.0.100"
+tracing = "0.1"
