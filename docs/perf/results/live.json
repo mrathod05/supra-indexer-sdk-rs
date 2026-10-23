@@ -1,0 +1,124 @@
+{
+  "host": {
+    "cpu_model": "13th Gen Intel(R) Core(TM) i5-13400",
+    "disk_rotational": "0",
+    "logical_cpus": 16,
+    "mem_total_kb": 24374432,
+    "pg_settings": [
+      [
+        "max_connections",
+        "100"
+      ],
+      [
+        "shared_buffers",
+        "128MB"
+      ],
+      [
+        "synchronous_commit",
+        "on"
+      ],
+      [
+        "fsync",
+        "on"
+      ],
+      [
+        "wal_level",
+        "replica"
+      ],
+      [
+        "max_wal_size",
+        "1GB"
+      ],
+      [
+        "commit_delay",
+        "0"
+      ]
+    ],
+    "pg_version": "14.24 (Ubuntu 14.24-1.pgdg22.04+2)",
+    "timestamp_utc": "2026-10-23T06:55:25Z"
+  },
+  "report": {
+    "notes": [
+      "RPC: https://rpc-testnet.supra.com. Measured from the bench host over the public internet.",
+      "Final status: chain_height=Some(149883328) indexed_height=Some(149883323) lag=Some(5)",
+      "Bench process peak RSS so far: 20 MiB."
+    ],
+    "scenario": "live",
+    "tables": [
+      {
+        "headers": [
+          "request",
+          "samples",
+          "p50 ms",
+          "p90 ms",
+          "p99 ms",
+          "max ms"
+        ],
+        "rows": [
+          [
+            "GET /rpc/v3/block",
+            30,
+            295.761,
+            303.072,
+            334.079,
+            334.079
+          ],
+          [
+            "GET /rpc/v3/events (page of 39672 B)",
+            30,
+            312.767,
+            319.424,
+            887.701,
+            887.701
+          ]
+        ],
+        "title": "RPC round-trip time"
+      },
+      {
+        "headers": [
+          "window s",
+          "blocks",
+          "blocks/s"
+        ],
+        "rows": [
+          [
+            30,
+            143,
+            4.72
+          ]
+        ],
+        "title": "Chain production"
+      },
+      {
+        "headers": [
+          "blocks",
+          "events",
+          "pages",
+          "cycles",
+          "RPC requests",
+          "wall s",
+          "blocks/s",
+          "events/s",
+          "avg ms/request",
+          "bench CPU cores"
+        ],
+        "rows": [
+          [
+            999999,
+            1221,
+            42,
+            10,
+            43,
+            12.155,
+            82268.0,
+            100.0,
+            282.684,
+            0.009
+          ]
+        ],
+        "title": "Catch-up over the last 1000000 blocks: 0x1::coin::CoinDeposit + 0x1::coin::CoinWithdraw (default config: 100 events/page, 100 000 blocks/cycle, finality lag 5)"
+      }
+    ],
+    "title": "Real SupraIndexer against the real Supra RPC"
+  }
+}

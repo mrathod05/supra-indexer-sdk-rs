@@ -1,0 +1,26 @@
+## s6_rpc_client — SupraClient request capacity vs concurrency
+
+_Host: 13th Gen Intel(R) Core(TM) i5-13400 ×16 · 23 GiB RAM · PostgreSQL 14.24 (Ubuntu 14.24-1.pgdg22.04+2) (max_connections=100, shared_buffers=128MB, synchronous_commit=on, fsync=on, wal_level=replica, max_wal_size=1GB, commit_delay=0) · disk rotational=0 · 2026-10-23T06:42:57Z_
+
+- Concurrent `SupraClient::fetch_events` calls (100-event trade pages, ~68 KB) against the stub. The indexer itself keeps one request in flight; this measures headroom for parallel use.
+- Bench process peak RSS so far: 151 MiB.
+
+### Results
+
+| L ms | concurrency | req/s | events/s | p50 ms | p99 ms | max ms |
+|---|---|---|---|---|---|---|
+| 20 | 1 | 46.0 | 4635.0 | 21.573 | 22.169 | 24.901 |
+| 20 | 2 | 93.0 | 9270.0 | 21.489 | 22.429 | 22.518 |
+| 20 | 4 | 184.0 | 18417.0 | 21.73 | 22.648 | 22.856 |
+| 20 | 8 | 368.0 | 36803.0 | 21.647 | 22.595 | 22.98 |
+| 20 | 16 | 727.0 | 72659.0 | 21.9 | 22.843 | 23.149 |
+| 20 | 32 | 1449.0 | 144859.0 | 21.951 | 23.318 | 29.255 |
+| 20 | 64 | 2833.0 | 283332.0 | 22.428 | 23.933 | 28.954 |
+| 20 | 128 | 5663.0 | 566293.0 | 22.403 | 24.845 | 29.415 |
+| 20 | 256 | 11292.0 | 1129240.0 | 22.479 | 24.984 | 31.175 |
+| 0 | 1 | 47763.0 | 4776345.0 | 0.02 | 0.026 | 0.753 |
+| 0 | 4 | 87891.0 | 8789082.0 | 0.039 | 0.105 | 1.843 |
+| 0 | 16 | 200104.0 | 20010401.0 | 0.073 | 0.204 | 1.471 |
+| 0 | 64 | 218081.0 | 21808148.0 | 0.284 | 0.548 | 3.991 |
+| 0 | 256 | 130736.0 | 13073596.0 | 1.853 | 4.289 | 18.328 |
+
