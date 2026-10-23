@@ -1,0 +1,16 @@
+{
+  "start_block": 135000000,
+  "indexed_height": 149883412,
+  "blocks": 14883413,
+  "events": 2,
+  "pages": 151,
+  "cycles": 149,
+  "rpc_requests": 152,
+  "wall_s": 37.0,
+  "blocks_per_s": 402254,
+  "avg_ms_per_request": 243.4,
+  "cpu_s": 0.4,
+  "avg_cpu_cores": 0.011,
+  "peak_rss_mib": 17.8,
+  "sigterm_exit_code": 0
+}

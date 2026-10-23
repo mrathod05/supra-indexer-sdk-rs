@@ -1,0 +1,119 @@
+{
+  "host": {
+    "cpu_model": "13th Gen Intel(R) Core(TM) i5-13400",
+    "disk_rotational": "0",
+    "logical_cpus": 16,
+    "mem_total_kb": 24374432,
+    "pg_settings": [
+      [
+        "max_connections",
+        "100"
+      ],
+      [
+        "shared_buffers",
+        "128MB"
+      ],
+      [
+        "synchronous_commit",
+        "on"
+      ],
+      [
+        "fsync",
+        "on"
+      ],
+      [
+        "wal_level",
+        "replica"
+      ],
+      [
+        "max_wal_size",
+        "1GB"
+      ],
+      [
+        "commit_delay",
+        "0"
+      ]
+    ],
+    "pg_version": "14.24 (Ubuntu 14.24-1.pgdg22.04+2)",
+    "timestamp_utc": "2026-10-23T06:49:18Z"
+  },
+  "report": {
+    "notes": [
+      "One event type, batch-insert store, 100 events/page (the Supra RPC cap). Stub delays every response by L ms.",
+      "calculated = 100 / (L + t0) where t0 is the measured L=0 page cycle; the SDK keeps one request in flight per indexer.",
+      "Bench process peak RSS so far: 32 MiB."
+    ],
+    "scenario": "s3_rpc_latency",
+    "tables": [
+      {
+        "headers": [
+          "L ms",
+          "events",
+          "events/s measured",
+          "events/s calculated",
+          "page cycle p50 ms",
+          "RPC requests",
+          "wall s"
+        ],
+        "rows": [
+          [
+            0,
+            20000,
+            27281.0,
+            31206.0,
+            3.205,
+            202,
+            0.733
+          ],
+          [
+            5,
+            10000,
+            6038.0,
+            12188.0,
+            16.596,
+            102,
+            1.656
+          ],
+          [
+            20,
+            10000,
+            2761.0,
+            4310.0,
+            35.758,
+            102,
+            3.621
+          ],
+          [
+            50,
+            5000,
+            1501.0,
+            1880.0,
+            65.554,
+            52,
+            3.332
+          ],
+          [
+            135,
+            5000,
+            647.0,
+            724.0,
+            148.536,
+            52,
+            7.731
+          ],
+          [
+            300,
+            5000,
+            304.0,
+            330.0,
+            316.218,
+            52,
+            16.424
+          ]
+        ],
+        "title": "Results"
+      }
+    ],
+    "title": "Throughput vs RPC round-trip latency"
+  }
+}

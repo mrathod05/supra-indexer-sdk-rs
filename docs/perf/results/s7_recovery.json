@@ -1,0 +1,116 @@
+{
+  "host": {
+    "cpu_model": "13th Gen Intel(R) Core(TM) i5-13400",
+    "disk_rotational": "0",
+    "logical_cpus": 16,
+    "mem_total_kb": 24374432,
+    "pg_settings": [
+      [
+        "max_connections",
+        "100"
+      ],
+      [
+        "shared_buffers",
+        "128MB"
+      ],
+      [
+        "synchronous_commit",
+        "on"
+      ],
+      [
+        "fsync",
+        "on"
+      ],
+      [
+        "wal_level",
+        "replica"
+      ],
+      [
+        "max_wal_size",
+        "1GB"
+      ],
+      [
+        "commit_delay",
+        "0"
+      ]
+    ],
+    "pg_version": "14.24 (Ubuntu 14.24-1.pgdg22.04+2)",
+    "timestamp_utc": "2026-10-23T06:42:57Z"
+  },
+  "report": {
+    "notes": [
+      "Crash run stopped after 0.366s with error: event store for `0xbe::bench::E0` failed: injected failure on store call 100",
+      "`bench_trades.tx_hash` is the primary key, so `rows after restart == events` means nothing was lost or duplicated.",
+      "Bench process peak RSS so far: 150 MiB."
+    ],
+    "scenario": "s7_recovery",
+    "tables": [
+      {
+        "headers": [
+          "runs",
+          "p50 ms",
+          "p90 ms",
+          "p99 ms",
+          "max ms"
+        ],
+        "rows": [
+          [
+            30,
+            5.642,
+            10.132,
+            11.996,
+            11.996
+          ]
+        ],
+        "title": "Startup: `run()` to first completed cycle (schema check, seed, advisory lock, 1 block + 2 events requests, 1 page commit)"
+      },
+      {
+        "headers": [
+          "events",
+          "failed page",
+          "rows committed before crash",
+          "rows after restart",
+          "missing",
+          "resume wall s",
+          "resume events/s"
+        ],
+        "rows": [
+          [
+            20000,
+            100,
+            9900,
+            20000,
+            0,
+            0.376,
+            26868.0
+          ]
+        ],
+        "title": "Crash on a page mid-range (store error after its INSERT, transaction rolled back), then restart"
+      },
+      {
+        "headers": [
+          "run",
+          "events",
+          "events/s",
+          "rows after"
+        ],
+        "rows": [
+          [
+            "fresh load",
+            20000,
+            28752.0,
+            20000
+          ],
+          [
+            "replay (all ON CONFLICT)",
+            20000,
+            39656.0,
+            20000
+          ]
+        ],
+        "title": "Idempotent replay: `force_start_block` reindex over existing rows vs a fresh load"
+      }
+    ],
+    "title": "Startup latency, crash recovery and idempotent replay"
+  }
+}

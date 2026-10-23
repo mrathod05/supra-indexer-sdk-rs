@@ -1,0 +1,14 @@
+[workspace]
+resolver = "3"
+members = ["supra-indexer-rs", "sdk-example"]
+
+[workspace.package]
+edition = "2024"
+rust-version = "1.85.0"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/mrathod05/supra-indexer-sdk-rs"
+
+[profile.release]
+lto = "thin"
+codegen-units = 16
+strip = true
