@@ -49,12 +49,24 @@ pub struct TradePayload {
     pub timestamp: String,
 }
 
-fn hex64(n: u64, salt: u64) -> String {
+/// Kind of synthetic 32-byte id; keeps market, trader, tx, ... ids distinct.
+#[derive(Clone, Copy)]
+enum Fake {
+    Market = 1,
+    Trader,
+    Tx,
+    Creator,
+    Token,
+}
+
+/// Deterministic fake address/hash for synthetic events (not cryptographic).
+fn fake_id(n: u64, kind: Fake) -> String {
+    let k = kind as u64;
     format!(
         "0x{:016x}{:016x}{:016x}{:016x}",
-        salt,
+        k,
         n,
-        n ^ salt,
+        n ^ k,
         n.wrapping_mul(31)
     )
 }
@@ -71,8 +83,8 @@ pub fn trade_event_json(event_type: &str, seq: u64, height: u64) -> String {
             r#""timestamp":"{ts}"}}}},"block_height":{h},"transaction_hash":"{tx}"}}"#
         ),
         ty = event_type,
-        market = hex64(seq % 64, 0xa1),
-        trader = hex64(seq % 5000, 0xb2),
+        market = fake_id(seq % 64, Fake::Market),
+        trader = fake_id(seq % 5000, Fake::Trader),
         outcome = seq % 2,
         buy = seq % 3 != 0,
         shares = 1_000_000 + seq * 7,
@@ -81,7 +93,7 @@ pub fn trade_event_json(event_type: &str, seq: u64, height: u64) -> String {
         price = 50_000_000 + seq % 1000,
         ts = 1_790_000_000 + seq,
         h = height,
-        tx = hex64(seq, 0xc3),
+        tx = fake_id(seq, Fake::Tx),
     )
 }
 
@@ -94,11 +106,11 @@ pub fn token_event_json(event_type: &str, seq: u64, height: u64) -> String {
             r#""token_address":"{token}"}}}},"block_height":{h},"transaction_hash":"{tx}"}}"#
         ),
         ty = event_type,
-        creator = hex64(seq % 100, 0xd4),
-        token = hex64(seq, 0xe5),
+        creator = fake_id(seq % 100, Fake::Creator),
+        token = fake_id(seq, Fake::Token),
         ts = 1_790_000_000 + seq,
         h = height,
-        tx = hex64(seq, 0xc3),
+        tx = fake_id(seq, Fake::Tx),
     )
 }
 
