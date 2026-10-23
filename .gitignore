@@ -1,4 +1,11 @@
 .idea
-**/target/**
-/supra-indexer-rs/target/
-/sdk-example/target/
+/target/
+**/target/
+
+# Secrets and local config: never commit
+.env
+*.env
+.env.*
+!.env.example
+temp
+temp.*

@@ -1,149 +1,67 @@
-// Example: Supra Indexer SDK Usage
-// This example demonstrates how to use the Supra Indexer SDK to monitor
-// and process blockchain events from a Supra smart contract.
-// Note: Set the .env variable and run `diesel setup` to creat the database
+//! Example indexer for `token_factory::TokenCreated` on Supra testnet.
+//!
+//! Configure via environment (see `.env.example`), then `cargo run -p sdk-example`.
 
-// Import necessary modules
-mod processor;
-mod db;
+mod schema;
+mod token_created;
 
-use anyhow::Result;
-use tracing::info;
-use supra_indexer_sdk::{IndexerConfig, SupraIndexer};
+use std::env;
+use std::net::SocketAddr;
 
-// Import specific event types and handlers for the CreateToken event
-// Note: You'll need to create these types in your processor module
-use crate::processor::CreateToken::types::{
-    CreateTokenEvent,
-    CreateTokenEventApiResponse,
-    CreateTokenStore
-};
+use anyhow::{Context, Result};
+use diesel_migrations::{EmbeddedMigrations, MigrationHarness, embed_migrations};
+use supra_indexer_sdk::prelude::*;
+use tracing_subscriber::EnvFilter;
+
+use crate::token_created::{EVENT_TYPE, TokenCreated, TokenCreatedStore};
+
+const MIGRATIONS: EmbeddedMigrations = embed_migrations!("migrations");
+
+fn env_or(name: &str, default: &str) -> String {
+    env::var(name).unwrap_or_else(|_| default.to_owned())
+}
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    // =========================================================================
-    // CONFIGURATION SECTION
-    // =========================================================================
-
-    // Set up Supra RPC endpoint
-    // For testnet (use this for development and testing)
-    let rpc_url = "https://rpc-testnet.supra.com".to_string();
-
-    // For mainnet (uncomment and use for production)
-    // let rpc_url = "https://rpc-mainnet.supra.com".to_string();
-
-    // Contract address to monitor
-    // This is the address of the smart contract emitting the events
-    let contract_address = "0xa802ca2e7a6604e8a4cc3ef390bc137767b0cb04438525b0a3451e0bbd410ddf".to_string();
-
-    // Event types to monitor (format: "module::EventName")
-    let create_token_event = "token_factory::TokenCreated".to_string();
-
-    // Example: Additional event type (uncomment to enable)
-    // let transfer_token_event = "token_factory::Transfer".to_string();
-
-    // =========================================================================
-    // INITIALIZATION SECTION
-    // =========================================================================
-
-    // Initialize tracing for structured logging
+    dotenvy::dotenv().ok();
     tracing_subscriber::fmt()
-        .with_max_level(tracing::Level::INFO)
+        .with_env_filter(EnvFilter::try_from_default_env().unwrap_or_else(|_| "info".into()))
         .init();
 
-    info!("Starting Supra Indexer Example...");
-    info!("Monitoring contract: {}", contract_address);
+    let database_url = env::var("DATABASE_URL").context("DATABASE_URL must be set")?;
+    let rpc_url = env_or("SUPRA_RPC_URL", "https://rpc-testnet.supra.com");
+    let contract = env_or(
+        "CONTRACT_ADDRESS",
+        "0xa802ca2e7a6604e8a4cc3ef390bc137767b0cb04438525b0a3451e0bbd410ddf",
+    );
+    let start_block: u64 = env_or("START_BLOCK", "135000000")
+        .parse()
+        .context("START_BLOCK must be a number")?;
+    let force_start = env_or("FORCE_START_BLOCK", "false") == "true";
+    let http_addr: SocketAddr = env_or("HTTP_ADDR", "0.0.0.0:8080")
+        .parse()
+        .context("HTTP_ADDR must be host:port")?;
 
-    // =========================================================================
-    // INDEXER CONFIGURATION
-    // =========================================================================
+    // Indexer lock + HTTP readiness check + page writes.
+    let pool = create_pool(&database_url, 5)?;
 
-    let config = IndexerConfig {
-        node_url: rpc_url,
-        contract_address,
-        last_block_height: 51891731,  // Start from this block
-        fetch_interval_ms: 3000,      // Poll every 3 seconds
-        events: vec![
-            create_token_event.clone(),
-            // Add more events here as needed:
-            // transfer_token_event.clone(),
-        ],
-    };
+    // App tables are owned by the app; the SDK creates only its checkpoint table.
+    {
+        let mut conn = pool.get()?;
+        conn.run_pending_migrations(MIGRATIONS)
+            .map_err(|e| anyhow::anyhow!("migrations failed: {e}"))?;
+    }
 
-    info!("Indexer configured to start from a block: {}", config.last_block_height);
+    let config = IndexerConfig::new(rpc_url, contract)
+        .start_block(start_block)
+        .force_start_block(force_start);
 
-    // =========================================================================
-    // DATABASE SETUP
-    // =========================================================================
+    let mut indexer = SupraIndexer::new(pool, config)?
+        .serve(ServerConfig::new(http_addr).admin_token(env::var("ADMIN_TOKEN").ok()));
 
-    // Establish database connection pool
-    // Note: The `establish_connection()` function should be defined in your db module
-    let db_pool = db::establish_connection()
-        .map_err(|e| anyhow::anyhow!("Failed to establish database connection: {}", e))?;
+    // Register in dependency order: events others rely on go first.
+    indexer.register_event::<TokenCreated, _>(EVENT_TYPE, TokenCreatedStore);
 
-    info!("Database connection established successfully");
-
-    // =========================================================================
-    // INDEXER INSTANCE CREATION
-    // =========================================================================
-
-    // Create the main indexer instance
-    let indexer = SupraIndexer::new(db_pool.clone(), config)
-        .await
-        .map_err(|e| anyhow::anyhow!("Failed to create an indexer: {}", e))?;
-
-    info!("Indexer initialized successfully");
-
-    // =========================================================================
-    // EVENT COLLECTOR REGISTRATION
-    // =========================================================================
-
-    // Register collectors for each event type
-    info!("Registering event collectors...");
-
-    // Register CreateToken event collector
-    let create_token_collector = indexer
-        .register_collector::<CreateTokenEvent, CreateTokenEventApiResponse, CreateTokenStore>(
-            create_token_event.clone(),
-            CreateTokenStore,  // Your custom event storage implementation
-        )
-        .await
-        .map_err(|e| anyhow::anyhow!("Failed to register CreateToken collector: {}", e))?;
-
-    info!("A registered collector for: {}", create_token_event);
-
-    /*
-    // Example: Register TransferToken event collector (uncomment to enable)
-    let transfer_token_collector = indexer
-        .register_collector::<TransferTokenEvent, TransferTokenEventApiResponse, TransferTokenStore>(
-            transfer_token_event.clone(),
-            TransferTokenStore,
-        )
-        .await
-        .map_err(|e| anyhow::anyhow!("Failed to register TransferToken collector: {}", e))?;
-    
-    info!("Registered collector for: {}", transfer_token_event);
-    */
-
-    // =========================================================================
-    // START INDEXING
-    // =========================================================================
-
-    // Create a vector of all collectors to start
-    let collectors = vec![
-        create_token_collector,
-        // transfer_token_collector, // Add more collectors here
-    ];
-
-    info!("Starting {} event collector(s)...", collectors.len());
-
-    // Start all collectors (this will run indefinitely)
-    indexer.start_all(collectors)
-        .await
-        .map_err(|e| anyhow::anyhow!("Indexer failed: {}", e))?;
-
-    // Note: The indexer runs indefinitely until interrupted
-    // Use Ctrl+C to stop the indexer gracefully
-
+    indexer.run().await?;
     Ok(())
 }
