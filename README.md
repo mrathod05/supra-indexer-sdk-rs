@@ -1,8 +1,25 @@
 # Supra Indexer SDK
 
+[![crates.io](https://img.shields.io/crates/v/supra_indexer_sdk.svg)](https://crates.io/crates/supra_indexer_sdk)
+[![docs.rs](https://docs.rs/supra_indexer_sdk/badge.svg)](https://docs.rs/supra_indexer_sdk)
+[![license](https://img.shields.io/crates/l/supra_indexer_sdk.svg)](https://github.com/mrathod05/supra-indexer-sdk-rs#license)
+
 Build crash-safe indexers for [Supra](https://supra.com) Move events, backed by PostgreSQL (diesel).
 
-You describe an event's payload and how to store it; the SDK handles RPC pagination, retries, checkpoints, finality lag, graceful shutdown and (optionally) health/admin endpoints.
+You describe an event's payload and how to store it. The SDK handles RPC pagination, retries, checkpoints, finality lag, graceful shutdown and, optionally, health/admin endpoints.
+
+## Features
+
+- **Crash-safe checkpoints.** Each page of events commits in the same transaction as its progress, and an unfinished range resumes from the saved RPC cursor.
+- **Ordered across event types.** Every type is indexed to the same target block each cycle, in registration order.
+- **Finality lag and bounded catch-up.** The indexer stays `finality_lag` blocks behind the tip, and works through history in windows, fetching the tip once per catch-up.
+- **Resilient RPC client.** It has a timeout, retries 5xx/408/429/network errors and lagging-replica 404s with backoff and jitter, and honours `Retry-After`.
+- **Operations.**
+  - Graceful SIGINT/SIGTERM shutdown, pause/resume.
+  - Live `IndexerStatus` (mode, lag, counters).
+  - A single-instance advisory lock.
+  - Optional `/health`, `/ready`, `/status` and token-protected admin routes (`server` feature).
+- **Low boilerplate.** For standard events you write a payload struct and an `EventStore`, nothing else.
 
 ```toml
 [dependencies]
@@ -57,7 +74,23 @@ async fn main() -> anyhow::Result<()> {
 }
 ```
 
-A full, runnable app (migrations, NUMERIC amounts, Docker, HTTP server) lives in [`sdk-example`](https://github.com/mrathod05/supra-indexer-sdk-rs/tree/main/sdk-example).
+A full, runnable app (migrations, NUMERIC amounts, Docker, HTTP server) lives in [`sdk-example`](sdk-example).
+
+### Environment
+
+The example and the test/benchmark tooling read these variables. Copy [`.env.example`](.env.example) to `.env`.
+
+| variable | used by | purpose |
+|---|---|---|
+| `DATABASE_URL` | example app | PostgreSQL for indexed data + checkpoints |
+| `SUPRA_RPC_URL` | example app, `live` bench | Supra RPC, e.g. `https://rpc-testnet.supra.com` |
+| `CONTRACT_ADDRESS`, `START_BLOCK`, `FORCE_START_BLOCK` | example app | what to index and from where |
+| `HTTP_ADDR`, `ADMIN_TOKEN` | example app (`server` feature) | HTTP bind address; bearer token for `/admin/*` |
+| `RUST_LOG` | example app | log filter |
+| `TEST_DATABASE_URL` | `cargo test` | enables PostgreSQL end-to-end tests |
+| `PERF_DATABASE_URL` | `perf_bench` | benchmark database (name must contain `perf`/`test`) |
+
+The SDK itself reads no environment variables. Everything is passed through `IndexerConfig`.
 
 ## Performance
 
@@ -79,7 +112,7 @@ Reproduce: `cargo run --release -p supra_indexer_sdk --example perf_bench -- all
 
 Each **cycle**:
 
-1. Read the chain tip from `GET /rpc/v3/block`; target = `tip - finality_lag`, capped at `max_blocks_per_cycle` blocks past the slowest event.
+1. Read the chain tip from `GET /rpc/v3/block`. The target is `tip - finality_lag`, capped at `max_blocks_per_cycle` blocks past the slowest event. While catching up, the tip is reused until the windows reach it.
 2. For each registered event, in registration order, page through `GET /rpc/v3/events/{address}::{module}::{Event}` up to the target with the `x-supra-cursor` header.
 3. Every page is stored **in one database transaction together with its checkpoint**.
 
@@ -124,6 +157,24 @@ Custom response shapes: implement `HasBlockHeight` for your event type and `Extr
 ## Control and HTTP server
 
 `indexer.handle()` returns a cloneable `IndexerHandle` with `pause()`, `resume()`, `shutdown()`, `status()` and `subscribe()`.
+
+`IndexerStatus` (also served at `/status`):
+
+```json
+{
+  "mode": "live",
+  "paused": false,
+  "chain_height": 149876355,
+  "indexed_height": 149876350,
+  "events": { "0xa802..0ddf::token_factory::TokenCreated": 149876351 },
+  "events_indexed": 2,
+  "pages_committed": 151,
+  "cycles_completed": 149,
+  "rpc_requests": 152,
+  "consecutive_failures": 0,
+  "last_error": null
+}
+```
 
 With the `server` feature:
 
